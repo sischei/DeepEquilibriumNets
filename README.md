@@ -1,7 +1,7 @@
 # Deep Equilibrium Nets
 
 <p align="center">
-<img src="screens/DEQ.jpeg" width="600px"/>
+<img src="screens/DEQN.png" width="600px"/>
 </p>
 
 
