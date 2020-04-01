@@ -25,13 +25,13 @@ The presented model is taken from [Krueger and Kubler (2004)](https://www.scienc
 
 
 ## Usage
-We provide implementations which use python 3 as well as TensorFlow 1. 
-We provide our implementation in two forms. A [jupyter-notebook](https://jupyter.org/) as well as a plain python script, which can be executed from the command line.
-The jupyter-notebook is self-contained and also contains the model and all relevant equations. 
+We provide implementations which use python 3 as well as TensorFlow 1. We provide our implementation in two forms. A [jupyter-notebook](https://jupyter.org/) that is self-contained and also contains the model and all relevant equations:
 
-* [Jupyter Notebook: Analytic_tf1.ipynb](code)
-* [Python Script: Analytic_tf1.py](code)
+[![Generic badge](https://img.shields.io/badge/jupyter%20nbviewer-DEQN-green)](https://nbviewer.jupyter.org/github/sischei/DeepEquilibriumNets/blob/master/code/jupyter-notebooks/Analytic_tf1.ipynb)
 
+as well as a plain python script, which can be executed from the command line:
+
+[![Generic badge 2](https://img.shields.io/badge/python%20script-DEQN-green)](code/python-scripts)
 
 ### Prerequisites / Installation
 
