@@ -42,7 +42,7 @@ The benchmark model code is was also written in TensorFlow 1, however, as been m
 
 ### Prerequisites / Installation
 
-To run the code for the implementation with an analytical solution, follow the instructions below. For instructions on how to run the benchmark model, see the corresponding [ReadMe](code/python-scripts/benchmark).
+To run the code for the implementation with an analytical solution, follow the instructions below. For instructions on how to run the benchmark model, see the corresponding [README](code/python-scripts/benchmark).
 
 #### TensorFlow 1
 ```shell
