@@ -1,7 +1,7 @@
 # The Deep Equilibrium Net Benchmark Model
 
 This script provides the code used to model and solve the benchmark model in the working paper by
-[Azinovic, Gaegauf, & Scheidegger (2020)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3393482)
+[Azinovic, Gaegauf, & Scheidegger (2021)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3393482)
 (see section 3). For a more streamlined application, see the [analytic notebook](https://github.com/sischei/DeepEquilibriumNets/blob/master/code/jupyter-notebooks/Analytic_tf1.ipynb).
 
 ### Prerequisites / Installation
@@ -41,6 +41,6 @@ The results are saved to `./output/deqn_benchmark`.
 
 **Note**: the results presented in the paper (see, section 5) were achieved by training the neural
 network on 2 training schedules. Once the first training schedule is complete (after running the
-above command), uncomment lines 1621-1627 and run the previous command again
+above command), uncomment lines 1314-1320 and run the previous command again
 (`python benchmark.py --train_from_scratch`). The results are saved to
 `./output/deqn_benchmark_2ndschedule`.

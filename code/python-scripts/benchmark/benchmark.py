@@ -4,7 +4,7 @@
 The deep equilibrium net benchmark model:
 
 This script provides the code used to model and solve the benchmark model in the working paper by
-Azinovic, Gaegauf, & Scheidegger (2020) (https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3393482)
+Azinovic, Gaegauf, & Scheidegger (2021) (https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3393482)
 (see section 3). For a more streamlined application, see
 https://github.com/sischei/DeepEquilibriumNets/blob/master/code/jupyter-notebooks/analytic/Analytic_tf1.ipynb.
 
@@ -32,7 +32,7 @@ The results are saved to ./output/deqn_benchmark
 
 Note: the results presented in the paper (see, section 5) were achieved by training the neural
 network on 2 training schedules. Once the first training schedule is complete (after running the
-above command), uncomment lines 1621-1627 and run the previous command again
+above command), uncomment lines 1314-1320 and run the previous command again
 (python benchmark.py --train_from_scratch). The results are saved to
 ./output/deqn_benchmark_2ndschedule.
 """
@@ -120,6 +120,9 @@ def train(path_wd, run_name, num_agents,
     np.random.seed(seed)
     tf.set_random_seed(seed)
 
+    # if the fraction of constraint agents should be printed
+    print_frac_constrained = False
+
     # Global data parameters ==================================================
     NUM_EX_SHOCKS = 4
     A = num_agents
@@ -166,7 +169,6 @@ def train(path_wd, run_name, num_agents,
                 LABOR_ENDOW[i, a] = temp_l - 0.5 * temp_l * (a - A_IS) / (A_DECR - 1 - A_IS)
             else:
                 LABOR_ENDOW[i, a] = 0.5 * temp_l
-
 
     econ_setup_dict['delta'] = DELTA.tolist()
     econ_setup_dict['xi'] = XI.tolist()
@@ -578,7 +580,7 @@ def train(path_wd, run_name, num_agents,
                     pi_trans_to4 = tf.expand_dims(probs_next[:, 3], -1) * tf.ones([1, A-1])
 
                     # euler equation
-                    opt_euler_tree = - 1 \
+                    opt_euler_cap = - 1 \
                         + (((
                             (beta *
                         (pi_trans_to1 * (Rprime_1_mat[:, 0:A-1] * (1. + zeta * adjustment_all_prime_1[:, 1:A])) * c_allprime_1[:, 1:A]**(- gamma)
@@ -598,14 +600,14 @@ def train(path_wd, run_name, num_agents,
                          + mu * kappa) / p_mat[:, 0:A-1]) ** (-1.0 / gamma))
                          / c_all[:, 0:A-1])
 
-                    opt_euler = tf.concat([opt_euler_tree, opt_euler_bond], axis = 1)
+                    opt_euler = tf.concat([opt_euler_cap, opt_euler_bond], axis = 1)
 
                     # KKT condition
                     # The condition that kprime >= 0 and lambd >= 0 are enforced by softplus activation in the output layer
-                    opt_KKT_tree = tf.multiply(kprime, lambd)
+                    opt_KKT_cap = tf.multiply(kprime, lambd)
                     opt_KKT_bond = tf.multiply(coll_req_prime, mu)
 
-                    opt_KKT = tf.concat([opt_KKT_tree, opt_KKT_bond], axis = 1)
+                    opt_KKT = tf.concat([opt_KKT_cap, opt_KKT_bond], axis = 1)
 
                 with tf.name_scope('punishments'):
                     # punishment for negative cons
@@ -739,8 +741,6 @@ def train(path_wd, run_name, num_agents,
 
             print('Loaded initial data from ' + load_data_path)
 
-    print('X_data_train = ', X_data_train)
-
     with tf.name_scope('training'):
         minibatch_size = int(batch_size)
         num_minibatches = int(len_episodes / minibatch_size)
@@ -775,11 +775,6 @@ def train(path_wd, run_name, num_agents,
 
         for ep in range(load_episode, num_episodes + load_episode):
             if ep == load_episode:
-                plot_bond_price_list=[]
-                plot_max_bond_dem_list=[]
-                plot_min_bond_dem_list=[]
-                plot_mean_bond_dem_list=[]
-
                 if ep <= 2:
                     X_data_train = np.matlib.repmat(X_data_train, sim_batch_size, 1)
 
@@ -802,9 +797,7 @@ def train(path_wd, run_name, num_agents,
 
                 minibatches = random_mini_batches(X_episodes, minibatch_size, train_seed)
                 minibatch_cost = 0
-                constrainedl, constrainedm = 0, 0
-                constrained_by_agel, constrained_by_agem = np.zeros((A-1)), np.zeros((A-1))
-
+                
                 if epoch == 0:
                     ee_error = np.zeros((1, 2 * (num_agents - 1)))
                     max_ee = np.zeros((1, 2 * (num_agents - 1)))
@@ -814,10 +807,6 @@ def train(path_wd, run_name, num_agents,
 
                     # Run optimization
                     minibatch_cost += sess.run(cost, feed_dict={X: minibatch_X}) / num_minibatches
-                    constrainedl += np.sum(sess.run(lambd, feed_dict={X: minibatch_X}) > 1e-4) / A / minibatch_size / num_minibatches
-                    constrainedm += np.sum(sess.run(mu, feed_dict={X: minibatch_X}) > 1e-4) / A / minibatch_size / num_minibatches
-                    constrained_by_agel += np.sum(sess.run(lambd, feed_dict={X: minibatch_X}) > 1e-4, axis=0) / minibatch_size / num_minibatches
-                    constrained_by_agem += np.sum(sess.run(mu, feed_dict={X: minibatch_X}) > 1e-4, axis=0) / minibatch_size / num_minibatches
                     if epoch == 0:
                         ee_error += np.mean(np.abs(sess.run(opt_euler, feed_dict={X: minibatch_X})), axis=0)/ num_minibatches
                         temp_max_ee = np.max(np.abs(sess.run(opt_euler, feed_dict={X: minibatch_X})), axis=0, keepdims = True)
@@ -835,7 +824,6 @@ def train(path_wd, run_name, num_agents,
 
                         # Run train step
                         sess.run(train_step, feed_dict={X: minibatch_X})
-
 
             end_time_learn = datetime.now()
             if print_flag:
@@ -855,10 +843,6 @@ def train(path_wd, run_name, num_agents,
             print('\nEpisode {}, log10(Cost)= {:.4f}'.format(ep, np.log10(cost_store[ep-load_episode])))
             print('Time: {}; time since start: {}'.format(datetime.now(), datetime.now() - start_time))
 
-            if not train_flag:
-                print('Fraction of contrained agents: {}, {}\n'.format(constrainedl, constrainedm))
-                print('Fraction of contrained agents by age: {}, {}\n'.format(constrained_by_agel, constrained_by_agem))
-
             if ep % save_interval == 0 or ep == 1:
                 plot_dict = {}
                 plot_epi_length = 2000
@@ -877,7 +861,7 @@ def train(path_wd, run_name, num_agents,
                 plt.rc('ytick', labelsize='small')
 
                 std_figsize = (4, 4)
-                percentiles_dict = {50:{'ls':':', 'label':'50'}, 10:{'ls':'-.', 'label':'10'} , 90:{'ls':'-.', 'label':'90'}, 0.1:{'ls':'--', 'label':'0.1'}, 99.9:{'ls':'--', 'label':'99.9'}}
+                percentiles_dict = {50:{'ls':':', 'label':'50'}, 10:{'ls':'-.', 'label':'10'} , 90:{'ls':'-.', 'label':'90'}, 99.9:{'ls':'--', 'label':'99.9'}, 0.1:{'ls':'--', 'label':'0.1'}}
 
                 shock1_dict = {'label': 'shock 1', 'color':'r'}
                 shock2_dict = {'label': 'shock 2', 'color':'b'}
@@ -909,57 +893,95 @@ def train(path_wd, run_name, num_agents,
                 bprime_ = sess.run(bprime, feed_dict = {X:X_episodes})
 
                 bond_spent_all_ = sess.run(bond_spent_all , feed_dict={X : X_episodes})
-                k_wakeup_all_ = sess.run(k_wakeup_all , feed_dict={X : X_episodes})
                 k_saved_all_ = sess.run(k_saved_all , feed_dict={X : X_episodes})
                 tot_saved_all_ = sess.run(tot_saved_all , feed_dict={X : X_episodes})
-                inc_ = sess.run(inc , feed_dict={X : X_episodes})
-                l_w_ = sess.run(l_w , feed_dict={X : X_episodes})
+                inc_ = sess.run(inc, feed_dict={X : X_episodes})
+                l_w_ = sess.run(l_w, feed_dict={X : X_episodes})
                 fin_w_ = inc_ - l_w_
-                adjustment_all_ = sess.run(adjustment_all , feed_dict={X : X_episodes})
                 adj_cost_all_ = sess.run(adj_cost_all , feed_dict={X : X_episodes})
 
                 lambd_ = sess.run(lambd, feed_dict={X: X_episodes})
                 mu_ = sess.run(mu, feed_dict={X: X_episodes})
-                opt_euler_tree_ = sess.run(opt_euler_tree, feed_dict={X: X_episodes})
+                opt_euler_cap_ = sess.run(opt_euler_cap, feed_dict={X: X_episodes})
                 opt_euler_bond_ = sess.run(opt_euler_bond, feed_dict={X: X_episodes})
-                opt_KKT_tree_ = sess.run(opt_KKT_tree, feed_dict={X: X_episodes})
+                opt_KKT_cap_ = sess.run(opt_KKT_cap, feed_dict={X: X_episodes})
                 opt_KKT_bond_ = sess.run(opt_KKT_bond, feed_dict={X: X_episodes})
                 opt_euler_ = sess.run(opt_euler, feed_dict={X:X_episodes})
 
-                opt_punish_bond_clear_ = sess.run(opt_punish_bond_clear, feed_dict={X: X_episodes})
-
                 tot_bond_dem_ = sess.run(tot_bond_dem, feed_dict={X: X_episodes})
-                plot_max_bond_dem_list.append(np.max(tot_bond_dem_))
-                plot_mean_bond_dem_list.append(np.mean(tot_bond_dem_))
-                plot_min_bond_dem_list.append(np.min(tot_bond_dem_))
-
-                plot_bond_price_list.append(bond_price_)
-
-                K_ = sess.run(K, feed_dict={X: X_episodes})
-                R_ = sess.run(R, feed_dict={X: X_episodes})
-                w_ = sess.run(w, feed_dict={X: X_episodes})
 
                 a_cond1 = (X_episodes[:plot_epi_length, 0] == 0)
                 a_cond2 = (X_episodes[:plot_epi_length, 0] == 1)
                 a_cond3 = (X_episodes[:plot_epi_length, 0] == 2)
                 a_cond4 = (X_episodes[:plot_epi_length, 0] == 3)
 
-                a2_cond1 = (X_episodes[:, 0] == 0)
-                a2_cond2 = (X_episodes[:, 0] == 1)
-                a2_cond3 = (X_episodes[:, 0] == 2)
-                a2_cond4 = (X_episodes[:, 0] == 3)
+                if print_frac_constrained:
+                    
+                    # to construct fraction of households with binding collateral constraint
+                    coll_req_prime_ = sess.run(coll_req_prime, feed_dict = {X : X_episodes})
+
+                    # mean value of kappa * k + b
+                    meancollreqprime = np.mean(coll_req_prime_)
+
+                    
+                    # construct fraction constrained households
+                    # compare: (kappa * b + k) / c to (kappa * mu) / (u'(c)) 
+
+                    frac_constr_bond_overall = np.mean((coll_req_prime_ / c_all_orig_[:, :-1]) < ((KAPPA * mu_) / c_all_orig_[:, :-1] ** (- GAMMA)), axis = 0)
+                    
+                    frac_constr_bond_1 = np.mean((coll_req_prime_[a_cond1] / c_all_orig_[a_cond1, :-1]) < (KAPPA * mu_[a_cond1]) / c_all_orig_[a_cond1, :-1] ** (- GAMMA), axis = 0)
+                    frac_constr_bond_2 = np.mean((coll_req_prime_[a_cond2] / c_all_orig_[a_cond2, :-1]) < (KAPPA * mu_[a_cond2]) / c_all_orig_[a_cond2, :-1] ** (- GAMMA), axis = 0)
+                    frac_constr_bond_3 = np.mean((coll_req_prime_[a_cond3] / c_all_orig_[a_cond3, :-1]) < (KAPPA * mu_[a_cond3]) / c_all_orig_[a_cond3, :-1] ** (- GAMMA), axis = 0)
+                    frac_constr_bond_4 = np.mean((coll_req_prime_[a_cond4] / c_all_orig_[a_cond4, :-1]) < (KAPPA * mu_[a_cond4]) / c_all_orig_[a_cond4, :-1] ** (- GAMMA), axis = 0)
+                    
+                    print('#' + '=' * 50)
+                    print('#' + '=' * 50)
+                    print('fraction collateral constrained by age:')
+                    print(frac_constr_bond_overall)
+                    print('fraction collateral constrained by shock and age:')
+                    print('shock 1:')
+                    print(frac_constr_bond_1)
+                    print('shock 2:')
+                    print(frac_constr_bond_2)
+                    print('shock 3:')
+                    print(frac_constr_bond_3)
+                    print('shock 4:')
+                    print(frac_constr_bond_4)
+                    print('#' + '=' * 50)
+
+                    for ageidx in range(plot_age_exceptlast.shape[0]):
+                        print('age = ', plot_age_exceptlast[ageidx])
+                        print('fraction collateral constrained:')
+                        print(frac_constr_bond_overall[ageidx])
+                        print('fraction collateral constrained by shock and age:')
+                        print('shock 1:')
+                        print(frac_constr_bond_1[ageidx])
+                        print('shock 2:')
+                        print(frac_constr_bond_2[ageidx])
+                        print('shock 3:')
+                        print(frac_constr_bond_3[ageidx])
+                        print('shock 4:')
+                        print(frac_constr_bond_4[ageidx])
+                        print('#' + '=' * 50)
+
 
                 ### plots needed for paper ###
                 fig=plt.figure(figsize = std_figsize)
                 ax = fig.add_subplot(1,1,1)
-                plt.plot(plot_age_exceptlast, np.mean(lambd_, axis=0), 'k-', label = 'capital, mean')
-                plt.plot(plot_age_exceptlast, np.mean(mu_, axis=0), 'r-', label = 'bond, mean')
+                lines, labs1, labs2 =  [], ['mean'], ['capital', 'bond']
+                l1, = plt.plot(plot_age_exceptlast, np.mean(lambd_, axis=0), 'k-', label = 'capital, mean')
+                l2, = plt.plot(plot_age_exceptlast, np.mean(mu_, axis=0), 'r-', label = 'bond, mean')
+                lines.append([l1, l2])
                 for perc_key in percentiles_dict:
-                    plt.plot(plot_age_exceptlast, np.percentile(lambd_, perc_key, axis=0), 'k'+percentiles_dict[perc_key]['ls'], label ='tree, ' + percentiles_dict[perc_key]['label']+' percentile')
-                    plt.plot(plot_age_exceptlast, np.percentile(mu_, perc_key, axis=0), 'r'+percentiles_dict[perc_key]['ls'], label ='bond, ' + percentiles_dict[perc_key]['label']+' percentile')
+                    l1, = plt.plot(plot_age_exceptlast, np.percentile(lambd_, perc_key, axis=0), 'k'+percentiles_dict[perc_key]['ls'], label ='capital, ' + percentiles_dict[perc_key]['label']+' percentile')
+                    l2, = plt.plot(plot_age_exceptlast, np.percentile(mu_, perc_key, axis=0), 'r'+percentiles_dict[perc_key]['ls'], label ='bond, ' + percentiles_dict[perc_key]['label']+' percentile')
+                    lines.append([l1, l2])
+                    labs1.append(percentiles_dict[perc_key]['label'] +' percentile')
                 ax.set_xlabel('Age')
                 ax.set_ylabel('KKT mult')
-                #plt.legend()
+                legend1 = plt.legend(lines[0], labs2, bbox_to_anchor=(1.05, 1), loc='upper left')
+                plt.legend([l[0] for l in lines], labs1, bbox_to_anchor=(1.05, 0.8), loc='upper left')
+                plt.gca().add_artist(legend1)
                 plt.savefig(plot_dir + '/' + run_name + '_KKTmult_episode' + str(ep)+'.pdf', bbox_inches='tight')
                 plt.close()
 
@@ -969,12 +991,12 @@ def train(path_wd, run_name, num_agents,
 
                 fig=plt.figure(figsize = std_figsize)
                 ax = fig.add_subplot(1,1,1)
-                plt.plot(plot_age_exceptlast, np.mean(bprime_, axis=0), 'k-', label = 'bond, mean')
+                plt.plot(plot_age_exceptlast, np.mean(bprime_, axis=0), 'k-', label = 'mean')
                 for perc_key in percentiles_dict:
-                    plt.plot(plot_age_exceptlast, np.percentile(bprime_, perc_key, axis=0), 'k'+percentiles_dict[perc_key]['ls'], label ='bond, ' + percentiles_dict[perc_key]['label']+' percentile')
+                    plt.plot(plot_age_exceptlast, np.percentile(bprime_, perc_key, axis=0), 'k'+percentiles_dict[perc_key]['ls'], label = percentiles_dict[perc_key]['label']+' percentile')
                 ax.set_xlabel('Age')
                 ax.set_ylabel('bond bought')
-                #plt.legend()
+                plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
                 plt.savefig(plot_dir + '/' + run_name + '_bondbought_episode' + str(ep)+'.pdf', bbox_inches='tight')
                 plt.close()
 
@@ -984,24 +1006,31 @@ def train(path_wd, run_name, num_agents,
 
                 fig=plt.figure(figsize = std_figsize)
                 ax = fig.add_subplot(1,1,1)
-                plt.plot(plot_age_all, np.mean(bond_spent_all_, axis=0), 'r-')
-                plt.plot(plot_age_all, np.mean(k_saved_all_, axis=0), 'k-')
-                plt.plot(plot_age_all, np.mean(adj_cost_all_, axis=0), 'g-')
-                plt.plot(plot_age_all, np.mean(tot_saved_all_ + adj_cost_all_, axis=0), 'b-')
+                lines, labs1, labs2 =  [], ['mean'], ['bond', 'capital', 'adj. cost', 'total']
+                l1, = plt.plot(plot_age_all, np.mean(bond_spent_all_, axis=0), 'r-')
+                l2, = plt.plot(plot_age_all, np.mean(k_saved_all_, axis=0), 'k-')
+                l3, = plt.plot(plot_age_all, np.mean(adj_cost_all_, axis=0), 'g-')
+                l4, = plt.plot(plot_age_all, np.mean(tot_saved_all_ + adj_cost_all_, axis=0), 'b-')
+                lines.append([l1, l2, l3, l4])
                 for perc_key in percentiles_dict:
-                    plt.plot(plot_age_all, np.percentile(bond_spent_all_, perc_key, axis=0), 'r'+percentiles_dict[perc_key]['ls'], label ='bond, ' + percentiles_dict[perc_key]['label']+' percentile')
-                    plt.plot(plot_age_all, np.percentile(k_saved_all_, perc_key, axis=0), 'k'+percentiles_dict[perc_key]['ls'], label ='capital, ' + percentiles_dict[perc_key]['label']+' percentile')
-                    plt.plot(plot_age_all, np.percentile(adj_cost_all_, perc_key, axis=0), 'g'+percentiles_dict[perc_key]['ls'], label ='adj. cost, ' + percentiles_dict[perc_key]['label']+' percentile')
-                    plt.plot(plot_age_all, np.percentile(tot_saved_all_ + adj_cost_all_, perc_key, axis=0), 'b'+percentiles_dict[perc_key]['ls'], label ='total, ' + percentiles_dict[perc_key]['label']+' percentile')
+                    l1, = plt.plot(plot_age_all, np.percentile(bond_spent_all_, perc_key, axis=0), 'r'+percentiles_dict[perc_key]['ls'], label ='bond, ' + percentiles_dict[perc_key]['label']+' percentile')
+                    l2, = plt.plot(plot_age_all, np.percentile(k_saved_all_, perc_key, axis=0), 'k'+percentiles_dict[perc_key]['ls'], label ='capital, ' + percentiles_dict[perc_key]['label']+' percentile')
+                    l3, = plt.plot(plot_age_all, np.percentile(adj_cost_all_, perc_key, axis=0), 'g'+percentiles_dict[perc_key]['ls'], label ='adj. cost, ' + percentiles_dict[perc_key]['label']+' percentile')
+                    l4, = plt.plot(plot_age_all, np.percentile(tot_saved_all_ + adj_cost_all_, perc_key, axis=0), 'b'+percentiles_dict[perc_key]['ls'], label ='total, ' + percentiles_dict[perc_key]['label']+' percentile')
+                    lines.append([l1, l2, l3, l4])
+                    labs1.append(percentiles_dict[perc_key]['label'] +' percentile')
                 ax.set_xlabel('Age')
                 ax.set_ylabel('cons invested')
-                #plt.legend()
+                legend1 = plt.legend(lines[0], labs2, bbox_to_anchor=(1.05, 1), loc='upper left')
+                plt.legend([l[1] for l in lines], labs1, bbox_to_anchor=(1.05, 0.6), loc='upper left')
+                plt.gca().add_artist(legend1)
                 plt.savefig(plot_dir + '/' + run_name + '_inv_episode' + str(ep)+'.pdf', bbox_inches='tight')
                 plt.close()
 
                 inv_dict = {'x1': plot_age_all.tolist(), 'x2': plot_age_all.tolist(),'x3': plot_age_all.tolist(),
                     'y1': bond_spent_all_.tolist(), 'y2': k_saved_all_.tolist(), 'y3': tot_saved_all_.tolist()}
                 plot_dict['inv'] = inv_dict
+
 
                 fig=plt.figure(figsize = std_figsize)
                 ax = fig.add_subplot(1,1,1)
@@ -1043,34 +1072,6 @@ def train(path_wd, run_name, num_agents,
                                     'y17': bond_spent_all_[a_cond4, :].tolist(), 'y18': k_saved_all_[a_cond4, :].tolist(), 'y19': adj_cost_all_[a_cond4, :].tolist(), 'y20': tot_saved_all_[a_cond4, :].tolist()}
                 plot_dict['invshock'] = invshock_dict
 
-                fig=plt.figure(figsize = std_figsize)
-                ax = fig.add_subplot(1,1,1)
-                plt.plot(plot_age_all, np.mean(adjustment_all_, axis=0), 'k-')
-                for perc_key in percentiles_dict:
-                    plt.plot(plot_age_all, np.percentile(adjustment_all_, perc_key, axis=0), 'k'+percentiles_dict[perc_key]['ls'], label ='capital, ' + percentiles_dict[perc_key]['label']+' percentile')
-                ax.set_xlabel('Age')
-                ax.set_ylabel('capital adjustment (knew - Rkold)')
-                #plt.legend()
-                plt.savefig(plot_dir + '/' + run_name + '_capitaladjustment_episode' + str(ep)+'.pdf', bbox_inches='tight')
-                plt.close()
-
-                capitaladjustment_dict = {'x': plot_age_all.tolist(), 'y': np.abs(k_wakeup_all_ - k_saved_all_).tolist()}
-                plot_dict['capitaladjustment'] = capitaladjustment_dict
-
-                fig=plt.figure(figsize = std_figsize)
-                ax = fig.add_subplot(1,1,1)
-                plt.plot(plot_age_all, np.mean(adjustment_all_, axis=0), 'k-')
-                for perc_key in percentiles_dict:
-                    plt.plot(plot_age_all, np.percentile(adjustment_all_[a_cond1, :], perc_key, axis=0),  shock_dict[1]['color']+percentiles_dict[perc_key]['ls'])
-                    plt.plot(plot_age_all, np.percentile(adjustment_all_[a_cond2, :], perc_key, axis=0),  shock_dict[2]['color']+percentiles_dict[perc_key]['ls'])
-                    plt.plot(plot_age_all, np.percentile(adjustment_all_[a_cond3, :], perc_key, axis=0),  shock_dict[3]['color']+percentiles_dict[perc_key]['ls'])
-                    plt.plot(plot_age_all, np.percentile(adjustment_all_[a_cond4, :], perc_key, axis=0),  shock_dict[4]['color']+percentiles_dict[perc_key]['ls'])
-                ax.set_xlabel('Age')
-                ax.set_ylabel('capital adjustment (knew - Rkold)')
-                #plt.legend()
-                plt.savefig(plot_dir + '/' + run_name + '_capitaladjustment_shock_episode' + str(ep)+'.pdf', bbox_inches='tight')
-                plt.close()
-
 
                 fig=plt.figure(figsize = std_figsize)
                 ax = fig.add_subplot(1,1,1)
@@ -1093,57 +1094,22 @@ def train(path_wd, run_name, num_agents,
                 plot_dict['bondprice'] = bondprice_dict
 
 
-                plot_ee_1 = opt_euler_[a_cond1, :].transpose()
-                plot_ee_2 = opt_euler_[a_cond2, :].transpose()
-                plot_ee_3 = opt_euler_[a_cond3, :].transpose()
-                plot_ee_4 = opt_euler_[a_cond4, :].transpose()
-
-                fig=plt.figure(figsize = std_figsize)
-                ax = fig.add_subplot(1,1,1)
-                for perc_key in percentiles_dict:
-                    ee_perc_1 =  np.percentile(plot_ee_1, perc_key, axis = 1)
-                    ee_perc_2 =  np.percentile(plot_ee_2, perc_key, axis = 1)
-                    ee_perc_3 =  np.percentile(plot_ee_3, perc_key, axis = 1)
-                    ee_perc_4 =  np.percentile(plot_ee_4, perc_key, axis = 1)
-                    ax.plot(np.arange(1, 2*(A-1)+1), ee_perc_1, shock_dict[1]['color'] + percentiles_dict[perc_key]['ls'])
-                    ax.plot(np.arange(1, 2*(A-1)+1), ee_perc_2, shock_dict[2]['color'] + percentiles_dict[perc_key]['ls'])
-                    ax.plot(np.arange(1, 2*(A-1)+1), ee_perc_3, shock_dict[3]['color'] + percentiles_dict[perc_key]['ls'])
-                    ax.plot(np.arange(1, 2*(A-1)+1), ee_perc_4, shock_dict[4]['color'] + percentiles_dict[perc_key]['ls'])
-                ax.set_ylabel('rel Ee error')
-                #plt.legend()
-                plt.savefig(plot_dir + '/' + run_name + '_opteuler_shock_episode' + str(ep)+'.pdf', bbox_inches='tight')
-                plt.close()
-
-                opteuler_shock_dict = {'x1': np.arange(1, 2*(A-1)+1).tolist(), 'x2': np.arange(1, 2*(A-1)+1).tolist(), 'x3': np.arange(1, 2*(A-1)+1).tolist(), 'x4': np.arange(1, 2*(A-1)+1).tolist(),
-                    'y1': plot_ee_1.tolist(), 'y2': plot_ee_2.tolist(), 'y3': plot_ee_3.tolist(), 'y4': plot_ee_4.tolist()}
-
-                plot_dict['opteuler_shock'] = opteuler_shock_dict
-
-
-                fig=plt.figure(figsize = std_figsize)
-                ax = fig.add_subplot(1,1,1)
-                plt.plot(plot_min_bond_dem_list, 'k:')
-                plt.plot(plot_max_bond_dem_list, 'k:')
-                plt.plot(plot_mean_bond_dem_list, 'k-')
-                ax.set_ylabel('bond demand')
-                #plt.legend()
-                plt.savefig(plot_dir + '/' + run_name + '_bonddem_episode' + str(ep)+'.pdf', bbox_inches='tight')
-                plt.close()
-
-                bond_demand_dict = {'x': tot_bond_dem_.tolist()}
-                plot_dict['bonddem'] = bond_demand_dict
-
                 plt.figure(figsize=std_figsize)
                 ax4 = plt.subplot(1,1,1)
-                #ax4.set_title('Average rel Eerror, episode {}'.format(ep))
-                ax4.plot(plot_age_exceptlast, np.log10(np.mean(np.abs(opt_euler_tree_), axis=0)), 'k-', label = 'capital, mean')
-                ax4.plot(plot_age_exceptlast, np.log10(np.mean(np.abs(opt_euler_bond_), axis=0)), 'r-', label = 'bond, mean')
+                lines, labs1, labs2 =  [], ['mean'], ['capital', 'bond']
+                l1, = ax4.plot(plot_age_exceptlast, np.log10(np.mean(np.abs(opt_euler_cap_), axis=0)), 'k-', label = 'capital, mean')
+                l2, = ax4.plot(plot_age_exceptlast, np.log10(np.mean(np.abs(opt_euler_bond_), axis=0)), 'r-', label = 'bond, mean')
+                lines.append([l1, l2])
                 for perc_key in percentiles_dict:
-                    ax4.plot(plot_age_exceptlast, np.log10(np.percentile(np.abs(opt_euler_tree_), perc_key, axis=0)), 'k'+percentiles_dict[perc_key]['ls'], label = 'capital, ' + percentiles_dict[perc_key]['label']+' percentile')
-                    ax4.plot(plot_age_exceptlast, np.log10(np.percentile(np.abs(opt_euler_bond_), perc_key, axis=0)), 'r'+percentiles_dict[perc_key]['ls'], label = 'bond, ' + percentiles_dict[perc_key]['label']+' percentile')
+                    l1, = ax4.plot(plot_age_exceptlast, np.log10(np.percentile(np.abs(opt_euler_cap_), perc_key, axis=0)), 'k'+percentiles_dict[perc_key]['ls'], label = 'capital, ' + percentiles_dict[perc_key]['label']+' percentile')
+                    l2, = ax4.plot(plot_age_exceptlast, np.log10(np.percentile(np.abs(opt_euler_bond_), perc_key, axis=0)), 'r'+percentiles_dict[perc_key]['ls'], label = 'bond, ' + percentiles_dict[perc_key]['label']+' percentile')
+                    lines.append([l1, l2])
+                    labs1.append(percentiles_dict[perc_key]['label'] +' percentile')
                 ax4.set_xlabel('Age')
                 ax4.set_ylabel('rel Ee error [log10]')
-                #plt.legend()
+                legend1 = plt.legend(lines[0], labs2, bbox_to_anchor=(1.05, 1), loc='upper left')
+                plt.legend([l[0] for l in lines], labs1, bbox_to_anchor=(1.05, 0.8), loc='upper left')
+                plt.gca().add_artist(legend1)
                 plt.savefig(plot_dir + '/' + run_name + '_relee_episode' + str(ep)+'.pdf', bbox_inches='tight')
                 plt.close()
 
@@ -1153,29 +1119,35 @@ def train(path_wd, run_name, num_agents,
 
                 fig=plt.figure(figsize = std_figsize)
                 ax = fig.add_subplot(1,1,1)
-                plt.plot(plot_age_exceptlast, np.log10(np.mean(opt_KKT_tree_, axis=0)), 'k-')
-                plt.plot(plot_age_exceptlast, np.log10(np.mean(opt_KKT_bond_, axis=0)), 'r-')
+                lines, labs1, labs2 =  [], ['mean'], ['capital', 'bond']
+                l1, = plt.plot(plot_age_exceptlast, np.log10(np.mean(opt_KKT_cap_, axis=0)), 'k-', label = 'capital, mean')
+                l2, = plt.plot(plot_age_exceptlast, np.log10(np.mean(opt_KKT_bond_, axis=0)), 'r-', label = 'bond, mean')
+                lines.append([l1, l2])
                 for perc_key in percentiles_dict:
-                    plt.plot(plot_age_exceptlast, np.log10(np.percentile(opt_KKT_tree_, perc_key, axis=0)), 'k'+percentiles_dict[perc_key]['ls'], label = percentiles_dict[perc_key]['label']+' percentile')
-                    plt.plot(plot_age_exceptlast, np.log10(np.percentile(opt_KKT_bond_, perc_key, axis=0)), 'r'+percentiles_dict[perc_key]['ls'], label = percentiles_dict[perc_key]['label']+' percentile')
+                    l1, = plt.plot(plot_age_exceptlast, np.log10(np.percentile(opt_KKT_cap_, perc_key, axis=0)), 'k'+percentiles_dict[perc_key]['ls'], label = 'capital, ' + percentiles_dict[perc_key]['label']+' percentile')
+                    l2, = plt.plot(plot_age_exceptlast, np.log10(np.percentile(opt_KKT_bond_, perc_key, axis=0)), 'r'+percentiles_dict[perc_key]['ls'], label = 'bond, ' +percentiles_dict[perc_key]['label']+' percentile')
+                    lines.append([l1, l2])
+                    labs1.append(percentiles_dict[perc_key]['label'] +' percentile')
                 ax.set_xlabel('Age')
                 ax.set_ylabel('KKT constr viol [log10]')
+                legend1 = plt.legend(lines[0], labs2, bbox_to_anchor=(1.05, 1), loc='upper left')
+                plt.legend([l[0] for l in lines], labs1, bbox_to_anchor=(1.05, 0.8), loc='upper left')
+                plt.gca().add_artist(legend1)
                 plt.savefig(plot_dir + '/' + run_name + '_opt_KKT_episode' + str(ep)+'.pdf', bbox_inches='tight')
                 plt.close()
 
-                opt_KKT_dict = {'x': plot_age_exceptlast.tolist(), 'y1': opt_KKT_tree_.tolist(), 'y2': opt_KKT_bond_.tolist()}
+                opt_KKT_dict = {'x': plot_age_exceptlast.tolist(), 'y1': opt_KKT_cap_.tolist(), 'y2': opt_KKT_bond_.tolist()}
                 plot_dict['opt_KKT'] = opt_KKT_dict
 
 
                 plt.figure(figsize=std_figsize)
                 ax1 = plt.subplot(1,1,1)
-                #ax1.set_title('consumption today, episode {}'.format(ep))
                 for perc_key in percentiles_dict:
                     ax1.plot(plot_age_all, np.percentile(c_all_orig_, perc_key, axis=0), 'k'+percentiles_dict[perc_key]['ls'], label = percentiles_dict[perc_key]['label']+' percentile')
                 ax1.plot(plot_age_all, np.mean(c_all_orig_, axis=0), 'k-', label = 'mean')
                 ax1.set_ylabel('c')
                 ax1.set_xlabel('Age')
-                #plt.legend()
+                plt.legend()
                 plt.savefig(plot_dir + '/' + run_name + '_cons_today_episode' + str(ep)+'.pdf', bbox_inches='tight')
                 plt.close()
 
@@ -1185,7 +1157,6 @@ def train(path_wd, run_name, num_agents,
 
                 plt.figure(figsize=std_figsize)
                 ax1 = plt.subplot(1,1,1)
-                #ax1.set_title('consumption tomorrow, episode {}'.format(ep))
                 for perc_key in percentiles_dict:
                     ax1.plot(plot_age_all, np.percentile(c_all_origprime_1_, perc_key, axis=0), shock_dict[1]['color']+percentiles_dict[perc_key]['ls'])
                     ax1.plot(plot_age_all, np.percentile(c_all_origprime_2_, perc_key, axis=0), shock_dict[2]['color']+percentiles_dict[perc_key]['ls'])
@@ -1208,33 +1179,22 @@ def train(path_wd, run_name, num_agents,
 
                 plt.figure(figsize=std_figsize)
                 ax1 = plt.subplot(1,1,1)
-                #ax1.set_title('consumption tomorrow, episode {}'.format(ep))
-                for perc_key in percentiles_dict:
-                    ax1.plot(100*np.ones(10)* np.percentile(opt_punish_bond_clear_[:, 1], perc_key), shock_dict[1]['color']+percentiles_dict[perc_key]['ls'])
-                    ax1.plot(100*np.ones(10)* np.percentile(opt_punish_bond_clear_[:, 2], perc_key), shock_dict[2]['color']+percentiles_dict[perc_key]['ls'])
-                    ax1.plot(100*np.ones(10)* np.percentile(opt_punish_bond_clear_[:, 3], perc_key), shock_dict[3]['color']+percentiles_dict[perc_key]['ls'])
-                    ax1.plot(100*np.ones(10)* np.percentile(opt_punish_bond_clear_[:, 4], perc_key), shock_dict[4]['color']+percentiles_dict[perc_key]['ls'])
-                    ax1.plot(100*np.ones(10)* np.percentile(opt_punish_bond_clear_[:, 0], perc_key), 'k'+percentiles_dict[perc_key]['ls'])
-                ax1.plot(100*np.ones(10)* np.mean(opt_punish_bond_clear_[:, 1]), shock_dict[1]['color']+'-', label = shock_dict[1]['label'])
-                ax1.plot(100*np.ones(10)* np.mean(opt_punish_bond_clear_[:, 2]), shock_dict[2]['color']+'-', label = shock_dict[2]['label'])
-                ax1.plot(100*np.ones(10)* np.mean(opt_punish_bond_clear_[:, 3]), shock_dict[3]['color']+'-', label = shock_dict[3]['label'])
-                ax1.plot(100*np.ones(10)* np.mean(opt_punish_bond_clear_[:, 4]), shock_dict[4]['color']+'-', label = shock_dict[4]['label'])
-                ax1.plot(100*np.ones(10)* np.mean(opt_punish_bond_clear_[:, 0]), 'k-', label = 'all')
-                ax1.set_ylabel('net bond demand / aggregate production [%]')
-                plt.legend()
-                plt.savefig(plot_dir + '/' + run_name + '_bond_clear_punish_episode' + str(ep)+'.pdf', bbox_inches='tight')
+                ax1.hist(np.abs(tot_bond_dem_), color = 'k', alpha = 0.5)
+                ax1.set_xlabel('Error aggregate bond demand')
+                ax1.set_ylabel('Count')
+                plt.savefig(plot_dir + '/' + run_name + '_bond_clear_error_hist_episode' + str(ep)+'.pdf', bbox_inches='tight')
                 plt.close()
 
 
                 # Show graph
                 plt.figure(figsize=std_figsize)
                 ax1 = plt.subplot(1,1,1)
-                #ax1.set_title('Average k, episode {}'.format(ep))
                 for perc_key in percentiles_dict:
-                    ax1.plot(plot_age_all, np.percentile(k_saved_all_, perc_key, axis=0), 'k'+percentiles_dict[perc_key]['ls'])
-                ax1.plot(plot_age_all, np.mean(k_saved_all_, axis=0), 'k-')
+                    ax1.plot(plot_age_all, np.percentile(k_saved_all_, perc_key, axis=0), 'k'+percentiles_dict[perc_key]['ls'], label = percentiles_dict[perc_key]['label']+' percentile')
+                ax1.plot(plot_age_all, np.mean(k_saved_all_, axis=0), 'k-', label = 'mean')
                 ax1.set_xlabel('Age')
                 ax1.set_ylabel('Saving in capital')
+                plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
                 plt.savefig(plot_dir + '/' + run_name + '_kpercs_episode' + str(ep)+'.pdf', bbox_inches='tight')
                 plt.close()
 
@@ -1244,27 +1204,12 @@ def train(path_wd, run_name, num_agents,
 
                 plt.figure(figsize=std_figsize)
                 ax1 = plt.subplot(1,1,1)
-                #ax1.set_title('Average k, episode {}'.format(ep))
                 for perc_key in percentiles_dict:
-                    ax1.plot(plot_age_all, np.percentile(inc_, perc_key, axis=0), 'k'+percentiles_dict[perc_key]['ls'])
-                ax1.plot(plot_age_all, np.mean(inc_, axis=0), 'k-')
-                ax1.set_xlabel('Age')
-                ax1.set_ylabel('Income (wakeup)')
-                plt.savefig(plot_dir + '/' + run_name + '_incomepercs_episode' + str(ep)+'.pdf', bbox_inches='tight')
-                plt.close()
-
-                incomepercs_dict = {'x': plot_age_all.tolist(), 'y': inc_.tolist()}
-                plot_dict['incomepercs'] = incomepercs_dict
-
-
-                plt.figure(figsize=std_figsize)
-                ax1 = plt.subplot(1,1,1)
-                #ax1.set_title('Average k, episode {}'.format(ep))
-                for perc_key in percentiles_dict:
-                    ax1.plot(plot_age_all, np.percentile(fin_w_, perc_key, axis=0), 'k'+percentiles_dict[perc_key]['ls'])
-                ax1.plot(plot_age_all, np.mean(fin_w_, axis=0), 'k-')
+                    ax1.plot(plot_age_all, np.percentile(fin_w_, perc_key, axis=0), 'k'+percentiles_dict[perc_key]['ls'], label = percentiles_dict[perc_key]['label']+' percentile')
+                ax1.plot(plot_age_all, np.mean(fin_w_, axis=0), 'k-', label = 'mean')
                 ax1.set_xlabel('Age')
                 ax1.set_ylabel('Financial wealth (wakeup)')
+                plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
                 plt.savefig(plot_dir + '/' + run_name + '_finwealthpercs_episode' + str(ep)+'.pdf', bbox_inches='tight')
                 plt.close()
 
@@ -1273,52 +1218,17 @@ def train(path_wd, run_name, num_agents,
 
 
                 plt.figure(figsize=std_figsize)
-                ax1 = plt.subplot(1,1,1)
-                #ax1.set_title('Average k, episode {}'.format(ep))
-                for perc_key in percentiles_dict:
-                    ax1.plot(plot_age_all, np.percentile(fin_w_[a_cond1, :], perc_key, axis=0), shock_dict[1]['color']+percentiles_dict[perc_key]['ls'])
-                    ax1.plot(plot_age_all, np.percentile(fin_w_[a_cond2, :], perc_key, axis=0), shock_dict[2]['color']+percentiles_dict[perc_key]['ls'])
-                    ax1.plot(plot_age_all, np.percentile(fin_w_[a_cond3, :], perc_key, axis=0), shock_dict[3]['color']+percentiles_dict[perc_key]['ls'])
-                    ax1.plot(plot_age_all, np.percentile(fin_w_[a_cond4, :], perc_key, axis=0), shock_dict[4]['color']+percentiles_dict[perc_key]['ls'])
-                ax1.plot(plot_age_all, np.mean(fin_w_[a_cond1, :], axis=0), shock_dict[1]['color']+'-')
-                ax1.plot(plot_age_all, np.mean(fin_w_[a_cond2, :], axis=0), shock_dict[2]['color']+'-')
-                ax1.plot(plot_age_all, np.mean(fin_w_[a_cond3, :], axis=0), shock_dict[3]['color']+'-')
-                ax1.plot(plot_age_all, np.mean(fin_w_[a_cond4, :], axis=0), shock_dict[4]['color']+'-')
-                ax1.set_xlabel('Age')
-                ax1.set_ylabel('Financial wealth (wakeup)')
-                plt.savefig(plot_dir + '/' + run_name + '_shockfinwealthpercs_episode' + str(ep)+'.pdf', bbox_inches='tight')
-                plt.close()
-
-                shockfinwealthpercs_dict = {'x1': plot_age_all.tolist(), 'x2': plot_age_all.tolist(), 'x3': plot_age_all.tolist(), 'x4': plot_age_all.tolist(),
-                    'y1': fin_w_[a_cond1, :].tolist(), 'y2': fin_w_[a_cond2, :].tolist(), 'y3': fin_w_[a_cond3, :].tolist(), 'y4': fin_w_[a_cond4, :].tolist()}
-                plot_dict['shockfinwealth'] = shockfinwealthpercs_dict
-
-
-                plt.figure(figsize=std_figsize)
-                ax3 = plt.subplot(1,1,1)
-                #ax3.set_title('Variance k, episode {}'.format(ep))
-                ax3.plot(plot_age_all, np.var(X_episodes[:, 8: 8 + A],axis=0), 'k-')
-                ax3.set_xlabel('Age')
-                ax3.set_ylabel('k (wakeup)')
-                plt.savefig(plot_dir + '/' + run_name + '_kvar_episode' + str(ep)+'.pdf', bbox_inches='tight')
-                plt.close()
-
-                kvar_dict = {'x': plot_age_all.tolist(), 'y': X_episodes[:, 8: 8 + A].tolist()}
-                plot_dict['kvar'] = kvar_dict
-
-
-                plt.figure(figsize=std_figsize)
                 ax6 = plt.subplot(1,1,1)
                 ax6.plot(np.arange(load_episode, ep+1), np.log10(cost_store[0:ep-load_episode+1]), 'k-', label = 'evolution')
                 ax6.plot(np.arange(load_episode, ep+1), np.log10(mov_ave_cost_store[0:ep-load_episode+1]), 'r--', label = 'moving mean')
                 ax6.set_xlabel('Episode')
                 ax6.set_ylabel('log10(cost)')
-                #plt.legend()
                 plt.savefig(plot_dir + '/' + run_name + '_cost_episode' + str(ep)+'.pdf', bbox_inches='tight')
                 plt.close()
 
                 cost_dict = {'x': np.arange(load_episode, ep+1).tolist(), 'y': cost_store[0:ep-load_episode+1].tolist()}
                 plot_dict['cost'] = cost_dict
+
 
                 if ep - load_episode > 1100:
 
@@ -1335,226 +1245,7 @@ def train(path_wd, run_name, num_agents,
                     costLAST_dict = {'x': np.arange(ep+1 - 1000, ep+1).tolist(), 'y': cost_store[ep-load_episode+1 - 1000:ep-load_episode+1].tolist()}
                     plot_dict['costLAST'] = costLAST_dict
 
-                plot_interval = 10
-
-                for a in range(num_agents-1):
-                    if a%plot_interval == 0 or a >= num_agents-5:
-                        plt.figure(figsize=std_figsize)
-                        ax = plt.subplot(1,1,1)
-                        plot_income = inc_[:, a]
-                        plot_saving = tot_saved_all_[:, a]
-                        plt.plot(plot_income[a_cond1], plot_saving[a_cond1], shock_dict[1]['color']+'*', label=shock_dict[1]['label'], markersize=1)
-                        plt.plot(plot_income[a_cond2], plot_saving[a_cond2], shock_dict[2]['color']+'o', label=shock_dict[2]['label'], markersize=1)
-                        plt.plot(plot_income[a_cond3], plot_saving[a_cond3], shock_dict[3]['color']+'*', label=shock_dict[3]['label'], markersize=1)
-                        plt.plot(plot_income[a_cond4], plot_saving[a_cond4], shock_dict[4]['color']+'o', label=shock_dict[4]['label'], markersize=1)
-                        plt.xlabel('Income')
-                        plt.ylabel('Saving')
-                        plt.legend()
-                        #plt.title('Agent {}, espisode {}'.format(a+1, ep))
-                        #plt.tight_layout()
-                        plt.savefig(plot_dir + '/' + run_name +'_pa_plot_agent'+str(a+1)+'_ep_'+str(ep)+'.pdf', bbox_inches='tight')
-                        plt.close()
-
-                        agent_pa_dict = {'x1': plot_income[a_cond1].tolist(), 'x2': plot_income[a_cond2].tolist(), 'x3': plot_income[a_cond3].tolist(), 'x4': plot_income[a_cond4].tolist(),
-                            'y1': plot_saving[a_cond1].tolist(), 'y2': plot_saving[a_cond2].tolist(), 'y3': plot_saving[a_cond3].tolist(), 'y4': plot_saving[a_cond4].tolist()}
-                        plot_dict['pa_plot_agent'+str(a+1)] = agent_pa_dict
-
-                for a in range(num_agents-1):
-                    if a%plot_interval == 0 or a >= num_agents-5:
-                        plt.figure(figsize=std_figsize)
-                        ax = plt.subplot(1,1,1)
-                        plot_fin_w_ = fin_w_[:, a]
-                        plot_saving = tot_saved_all_[:, a]
-                        plt.plot(plot_fin_w_[a_cond1], plot_saving[a_cond1], shock_dict[1]['color']+'*', label=shock_dict[1]['label'], markersize=1)
-                        plt.plot(plot_fin_w_[a_cond2], plot_saving[a_cond2], shock_dict[2]['color']+'o', label=shock_dict[2]['label'], markersize=1)
-                        plt.plot(plot_fin_w_[a_cond3], plot_saving[a_cond3], shock_dict[3]['color']+'*', label=shock_dict[3]['label'], markersize=1)
-                        plt.plot(plot_fin_w_[a_cond4], plot_saving[a_cond4], shock_dict[4]['color']+'o', label=shock_dict[4]['label'], markersize=1)
-                        plt.xlabel('Financial wealth (wake up)')
-                        plt.ylabel('Saving (total)')
-                        plt.legend()
-                        #plt.title('Agent {}, espisode {}'.format(a+1, ep))
-                        #plt.tight_layout()
-                        plt.savefig(plot_dir + '/' + run_name +'_fw_save_plot_agent'+str(a+1)+'_ep_'+str(ep)+'.pdf', bbox_inches='tight')
-                        plt.close()
-
-                        fw_save_dict = {'x1': plot_fin_w_[a_cond1].tolist(), 'x2': plot_fin_w_[a_cond2].tolist(), 'x3': plot_fin_w_[a_cond3].tolist(), 'x4': plot_fin_w_[a_cond4].tolist(),
-                            'y1': plot_saving[a_cond1].tolist(), 'y2': plot_saving[a_cond2].tolist(), 'y3': plot_saving[a_cond3].tolist(), 'y4': plot_saving[a_cond4].tolist()}
-                        plot_dict['fw_save_agent'+str(a+1)] = fw_save_dict
-
-                for a in range(num_agents-1):
-                    if a%plot_interval == 0 or a >= num_agents-5:
-                        plt.figure(figsize=std_figsize)
-                        ax = plt.subplot(1,1,1)
-                        plot_fin_w_ = fin_w_[:, a]
-                        plot_saving = k_saved_all_[:, a]
-                        plt.plot(plot_fin_w_[a_cond1], plot_saving[a_cond1], shock_dict[1]['color']+'*', label=shock_dict[1]['label'], markersize=1)
-                        plt.plot(plot_fin_w_[a_cond2], plot_saving[a_cond2], shock_dict[2]['color']+'o', label=shock_dict[2]['label'], markersize=1)
-                        plt.plot(plot_fin_w_[a_cond3], plot_saving[a_cond3], shock_dict[3]['color']+'*', label=shock_dict[3]['label'], markersize=1)
-                        plt.plot(plot_fin_w_[a_cond4], plot_saving[a_cond4], shock_dict[4]['color']+'o', label=shock_dict[4]['label'], markersize=1)
-                        plt.xlabel('Financial wealth (wake up)')
-                        plt.ylabel('Saving in capital')
-                        plt.legend()
-                        #plt.title('Agent {}, espisode {}'.format(a+1, ep))
-                        plt.savefig(plot_dir + '/' + run_name +'_fw_k_plot_agent'+str(a+1)+'_ep_'+str(ep)+'.pdf', bbox_inches='tight')
-                        plt.close()
-
-                        fw_k_dict = {'x1': plot_fin_w_[a_cond1].tolist(), 'x2': plot_fin_w_[a_cond2].tolist(), 'x3': plot_fin_w_[a_cond3].tolist(), 'x4': plot_fin_w_[a_cond4].tolist(),
-                            'y1': plot_saving[a_cond1].tolist(), 'y2': plot_saving[a_cond2].tolist(), 'y3': plot_saving[a_cond3].tolist(), 'y4': plot_saving[a_cond4].tolist()}
-                        plot_dict['fw_k_agent'+str(a+1)] = fw_k_dict
-
-                for a in range(num_agents-1):
-                    if a%plot_interval == 0 or a >= num_agents-5:
-                        plt.figure(figsize=std_figsize)
-                        ax = plt.subplot(1,1,1)
-                        plot_k_w_ = X_episodes[:, 8 + 3 * A + a]
-                        plot_saving = k_saved_all_[:, a]
-                        plt.plot(plot_k_w_[a_cond1], plot_saving[a_cond1], shock_dict[1]['color']+'*', label=shock_dict[1]['label'], markersize=1)
-                        plt.plot(plot_k_w_[a_cond2], plot_saving[a_cond2], shock_dict[2]['color']+'o', label=shock_dict[2]['label'], markersize=1)
-                        plt.plot(plot_k_w_[a_cond3], plot_saving[a_cond3], shock_dict[3]['color']+'*', label=shock_dict[3]['label'], markersize=1)
-                        plt.plot(plot_k_w_[a_cond4], plot_saving[a_cond4], shock_dict[4]['color']+'o', label=shock_dict[4]['label'], markersize=1)
-                        plt.xlabel('Capital (wake up)')
-                        plt.ylabel('Saving in capital')
-                        plt.legend()
-                        #plt.title('Agent {}, espisode {}'.format(a+1, ep))
-                        plt.savefig(plot_dir + '/' + run_name +'_kw_k_plot_agent'+str(a+1)+'_ep_'+str(ep)+'.pdf', bbox_inches='tight')
-                        plt.close()
-
-                        kw_k_dict = {'x1': plot_k_w_[a_cond1].tolist(), 'x2': plot_k_w_[a_cond2].tolist(), 'x3': plot_k_w_[a_cond3].tolist(), 'x4': plot_k_w_[a_cond4].tolist(),
-                            'y1': plot_saving[a_cond1].tolist(), 'y2': plot_saving[a_cond2].tolist(), 'y3': plot_saving[a_cond3].tolist(), 'y4': plot_saving[a_cond4].tolist()}
-                        plot_dict['kw_k_agent'+str(a+1)] = kw_k_dict
-
-                for a in range(num_agents-1):
-                    if a%plot_interval == 0 or a >= num_agents-5:
-                        plt.figure(figsize=std_figsize)
-                        ax = plt.subplot(1,1,1)
-                        plot_fin_w_ = fin_w_[:, a]
-                        plot_saving = bond_spent_all_[:, a]
-                        plt.plot(plot_fin_w_[a_cond1], plot_saving[a_cond1], shock_dict[1]['color']+'*', label=shock_dict[1]['label'], markersize=1)
-                        plt.plot(plot_fin_w_[a_cond2], plot_saving[a_cond2], shock_dict[2]['color']+'o', label=shock_dict[2]['label'], markersize=1)
-                        plt.plot(plot_fin_w_[a_cond3], plot_saving[a_cond3], shock_dict[3]['color']+'*', label=shock_dict[3]['label'], markersize=1)
-                        plt.plot(plot_fin_w_[a_cond4], plot_saving[a_cond4], shock_dict[4]['color']+'o', label=shock_dict[4]['label'], markersize=1)
-                        plt.xlabel('Financial wealth (wake up)')
-                        plt.ylabel('Saving in bond')
-                        plt.legend()
-                        #plt.title('Agent {}, espisode {}'.format(a+1, ep))
-                        plt.savefig(plot_dir + '/' + run_name +'_fw_bond_plot_agent'+str(a+1)+'_ep_'+str(ep)+'.pdf', bbox_inches='tight')
-                        plt.close()
-
-                        fw_bond_dict = {'x1': plot_fin_w_[a_cond1].tolist(), 'x2': plot_fin_w_[a_cond2].tolist(), 'x3': plot_fin_w_[a_cond3].tolist(), 'x4': plot_fin_w_[a_cond4].tolist(),
-                            'y1': plot_saving[a_cond1].tolist(), 'y2': plot_saving[a_cond2].tolist(), 'y3': plot_saving[a_cond3].tolist(), 'y4': plot_saving[a_cond4].tolist()}
-                        plot_dict['fw_bond_agent'+str(a+1)] = fw_bond_dict
-
-                for a in range(num_agents-1):
-                    if a%plot_interval == 0 or a >= num_agents-5:
-                        plt.figure(figsize=std_figsize)
-                        ax = plt.subplot(1,1,1)
-                        plot_income = inc_[:, a]
-                        plot_lambd_ = lambd_[:, a]
-                        plt.plot(plot_income[a_cond1], plot_lambd_[a_cond1], shock_dict[1]['color']+'*', label=shock_dict[1]['label'], markersize=1)
-                        plt.plot(plot_income[a_cond2], plot_lambd_[a_cond2], shock_dict[2]['color']+'o', label=shock_dict[2]['label'], markersize=1)
-                        plt.plot(plot_income[a_cond3], plot_lambd_[a_cond3], shock_dict[3]['color']+'*', label=shock_dict[3]['label'], markersize=1)
-                        plt.plot(plot_income[a_cond4], plot_lambd_[a_cond4], shock_dict[4]['color']+'o', label=shock_dict[4]['label'], markersize=1)
-                        plt.xlabel('Income')
-                        plt.ylabel('KKT multiplier (capital)')
-                        plt.legend()
-                        #plt.title('Agent {}, espisode {}'.format(a+1, ep))
-                        plt.savefig(plot_dir + '/' + run_name +'_KKTmult_capital_plot_agent'+str(a+1)+'_ep_'+str(ep)+'.pdf', bbox_inches='tight')
-                        plt.close()
-
-                        agent_KKTmult_dict = {'x1': plot_income[a_cond1].tolist(), 'x2': plot_income[a_cond2].tolist(), 'x3': plot_income[a_cond3].tolist(), 'x4': plot_income[a_cond4].tolist(),
-                            'y1': plot_lambd_[a_cond1].tolist(), 'y2': plot_lambd_[a_cond2].tolist(), 'y3': plot_lambd_[a_cond3].tolist(), 'y4': plot_lambd_[a_cond4].tolist()}
-                        plot_dict['KKTmult_capital_agent'+str(a+1)] = agent_KKTmult_dict
-
-                for a in range(num_agents-1):
-                    if a%plot_interval == 0 or a >= num_agents-5:
-                        plt.figure(figsize=std_figsize)
-                        ax = plt.subplot(1,1,1)
-                        plot_income = inc_[:, a]
-                        plot_mu_ = mu_[:, a]
-                        plt.plot(plot_income[a_cond1], plot_mu_[a_cond1], shock_dict[1]['color']+'*', label=shock_dict[1]['label'], markersize=1)
-                        plt.plot(plot_income[a_cond2], plot_mu_[a_cond2], shock_dict[2]['color']+'o', label=shock_dict[2]['label'], markersize=1)
-                        plt.plot(plot_income[a_cond3], plot_mu_[a_cond3], shock_dict[3]['color']+'*', label=shock_dict[3]['label'], markersize=1)
-                        plt.plot(plot_income[a_cond4], plot_mu_[a_cond4], shock_dict[4]['color']+'o', label=shock_dict[4]['label'], markersize=1)
-                        plt.xlabel('Income')
-                        plt.ylabel('KKT multiplier (bond)')
-                        plt.legend()
-                        #plt.title('Agent {}, espisode {}'.format(a+1, ep))
-                        plt.savefig(plot_dir + '/' + run_name +'_KKTmult_bond_plot_agent'+str(a+1)+'_ep_'+str(ep)+'.pdf', bbox_inches='tight')
-                        plt.close()
-
-                        agent_KKTmult_dict = {'x1': plot_income[a_cond1].tolist(), 'x2': plot_income[a_cond2].tolist(), 'x3': plot_income[a_cond3].tolist(), 'x4': plot_income[a_cond4].tolist(),
-                            'y1': plot_mu_[a_cond1].tolist(), 'y2': plot_mu_[a_cond2].tolist(), 'y3': plot_mu_[a_cond3].tolist(), 'y4': plot_mu_[a_cond4].tolist()}
-                        plot_dict['KKTmult_bond_agent'+str(a+1)] = agent_KKTmult_dict
-
-                plt.figure(figsize=std_figsize)
-                ax1 = plt.subplot(111)
-                #ax1.set_title('R, episode {}'.format(ep))
-                ax1.plot(np.arange(1, len_plot_episodes + 1), np.mean(R_)*np.ones_like(np.arange(1, len_plot_episodes + 1)), 'k-', label = 'mean')
-                ax1.plot(np.arange(1, len_plot_episodes + 1)[a2_cond1], R_[a2_cond1], shock_dict[1]['color']+'*', label=shock_dict[1]['label'], markersize=1)
-                ax1.plot(np.arange(1, len_plot_episodes + 1)[a2_cond2], R_[a2_cond2], shock_dict[2]['color']+'o', label=shock_dict[2]['label'], markersize=1)
-                ax1.plot(np.arange(1, len_plot_episodes + 1)[a2_cond3], R_[a2_cond3], shock_dict[3]['color']+'*', label=shock_dict[3]['label'], markersize=1)
-                ax1.plot(np.arange(1, len_plot_episodes + 1)[a2_cond4], R_[a2_cond4], shock_dict[4]['color']+'o', label=shock_dict[4]['label'], markersize=1)
-                ax1.legend()
-                ax1.set_ylabel('R')
-                ax1.set_xlabel('time')
-                plt.savefig(plot_dir + '/' + run_name +'_Rdev_ep_'+str(ep)+'.pdf', bbox_inches='tight')
-                plt.close()
-
-                Rdev_dict = {'x1':np.arange(1, len_plot_episodes + 1).tolist(),
-                        'x2': np.arange(1, len_plot_episodes + 1)[a2_cond1].tolist(),
-                        'x3': np.arange(1, len_plot_episodes + 1)[a2_cond2].tolist(),
-                        'x4': np.arange(1, len_plot_episodes + 1)[a2_cond3].tolist(),
-                        'x5': np.arange(1, len_plot_episodes + 1)[a2_cond4].tolist(),
-                        'y1': R_.tolist(), 'y2': R_[a2_cond1].tolist(), 'y3':  R_[a2_cond2].tolist(),
-                            'y4':  R_[a2_cond3].tolist(), 'y5':  R_[a2_cond4].tolist()}
-                plot_dict['Rdev'] = Rdev_dict
-
-                plt.figure(figsize=std_figsize)
-                ax1 = plt.subplot(111)
-                #ax1.set_title('R, episode {}'.format(ep))
-                ax1.plot(np.arange(1, len_plot_episodes + 1), np.mean(w_)*np.ones_like(np.arange(1, len_plot_episodes + 1)), 'k-', label = 'mean')
-                ax1.plot(np.arange(1, len_plot_episodes + 1)[a2_cond1], w_[a2_cond1], shock_dict[1]['color']+'*', label=shock_dict[1]['label'], markersize=1)
-                ax1.plot(np.arange(1, len_plot_episodes + 1)[a2_cond2], w_[a2_cond2], shock_dict[2]['color']+'o', label=shock_dict[2]['label'], markersize=1)
-                ax1.plot(np.arange(1, len_plot_episodes + 1)[a2_cond3], w_[a2_cond3], shock_dict[3]['color']+'*', label=shock_dict[3]['label'], markersize=1)
-                ax1.plot(np.arange(1, len_plot_episodes + 1)[a2_cond4], w_[a2_cond4], shock_dict[4]['color']+'o', label=shock_dict[4]['label'], markersize=1)
-                ax1.legend()
-                ax1.set_ylabel('w')
-                ax1.set_xlabel('time')
-                plt.savefig(plot_dir + '/' + run_name +'_wdev_ep_'+str(ep)+'.pdf', bbox_inches='tight')
-                plt.close()
-
-                wdev_dict = {'x1':np.arange(1, len_plot_episodes + 1).tolist(),
-                        'x2': np.arange(1, len_plot_episodes + 1)[a2_cond1].tolist(),
-                        'x3': np.arange(1, len_plot_episodes + 1)[a2_cond2].tolist(),
-                        'x4': np.arange(1, len_plot_episodes + 1)[a2_cond3].tolist(),
-                        'x5': np.arange(1, len_plot_episodes + 1)[a2_cond4].tolist(),
-                        'y1': w_.tolist(), 'y2': w_[a2_cond1].tolist(), 'y3':  w_[a2_cond2].tolist(),
-                            'y4':  w_[a2_cond3].tolist(), 'y5':  w_[a2_cond4].tolist()}
-                plot_dict['wdev'] = wdev_dict
-
-                plt.figure(figsize=std_figsize)
-                ax1 = plt.subplot(111)
-                #ax1.set_title('R, episode {}'.format(ep))
-                ax1.plot(np.arange(1, len_plot_episodes + 1), np.mean(K_)*np.ones_like(np.arange(1, len_plot_episodes + 1)), 'k-', label = 'mean')
-                ax1.plot(np.arange(1, len_plot_episodes + 1)[a2_cond1], K_[a2_cond1], shock_dict[1]['color']+'*', label=shock_dict[1]['label'], markersize=1)
-                ax1.plot(np.arange(1, len_plot_episodes + 1)[a2_cond2], K_[a2_cond2], shock_dict[2]['color']+'o', label=shock_dict[2]['label'], markersize=1)
-                ax1.plot(np.arange(1, len_plot_episodes + 1)[a2_cond3], K_[a2_cond3], shock_dict[3]['color']+'*', label=shock_dict[3]['label'], markersize=1)
-                ax1.plot(np.arange(1, len_plot_episodes + 1)[a2_cond4], K_[a2_cond4], shock_dict[4]['color']+'o', label=shock_dict[4]['label'], markersize=1)
-                ax1.legend()
-                ax1.set_ylabel('K')
-                ax1.set_xlabel('time')
-                plt.savefig(plot_dir + '/' + run_name +'_Kdev_ep_'+str(ep)+'.pdf', bbox_inches='tight')
-                plt.close()
-
-                Kdev_dict = {'x1':np.arange(1, len_plot_episodes + 1).tolist(),
-                        'x2': np.arange(1, len_plot_episodes + 1)[a2_cond1].tolist(),
-                        'x3': np.arange(1, len_plot_episodes + 1)[a2_cond2].tolist(),
-                        'x4': np.arange(1, len_plot_episodes + 1)[a2_cond3].tolist(),
-                        'x5': np.arange(1, len_plot_episodes + 1)[a2_cond4].tolist(),
-                        'y1': K_.tolist(), 'y2': K_[a2_cond1].tolist(), 'y3':  K_[a2_cond2].tolist(),
-                            'y4':  K_[a2_cond3].tolist(), 'y5':  K_[a2_cond4].tolist()}
-                plot_dict['Kdev'] = Kdev_dict
-
+                
                 saver = tf.train.Saver(nn.param_dict)
                 save_param_path = save_base_path + '/model/' + run_name + '-episode' + str(ep)
                 save_data_path = save_base_path + '/model/' + run_name + '-episode' + str(ep) + '_LastData.npy'
@@ -1567,6 +1258,8 @@ def train(path_wd, run_name, num_agents,
                     save_plot_dict_path = path_wd + '/output/' + run_name + '/plotdata/' +run_name + 'plot_dict_ep_'+str(ep)+'.json'
                     json.dump(plot_dict, codecs.open(save_plot_dict_path, 'w', encoding='utf-8'), separators=(',', ':'), indent=4)
                     print('plot data saved to '+ save_plot_dict_path)
+
+
 
         params_dict = sess.run(nn.param_dict)
         for param_key in params_dict:
@@ -1617,14 +1310,14 @@ def main():
     load_episode = 200000 if args.load_flag else 1
     save_raw_plot_data = False
 
-    # For the 2nd training schedule, uncomment: ######################
-    #batch_size = 1000
-    #num_episodes = 140000
-    #lr = 1e-6
-    #run_name = 'deqn_benchmark_2ndschedule'
-    #load_flag = True
-    #load_run_name = 'deqn_benchmark'
-    #load_episode = 60000
+    # For the 2nd training schedule: first train 60000 episodes from scratch, then uncomment the next 7 lines ######################
+    # batch_size = 1000
+    # num_episodes = 140000
+    # lr = 1e-6
+    # run_name = 'deqn_benchmark_2ndschedule'
+    # load_flag = True
+    # load_run_name = 'deqn_benchmark'
+    # load_episode = 60000
     # ################################################################
 
     print('seed: {}'.format(seed))

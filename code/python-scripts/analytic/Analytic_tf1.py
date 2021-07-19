@@ -7,9 +7,9 @@ up and solving dynamic general equilibrium models with deep equilibrium nets. Us
 
 to install the correct version.
 
-The notebook accompanies the working paper by Azinovic, Gaegauf, & Scheidegger(2020)
+The notebook accompanies the working paper by Azinovic, Gaegauf, & Scheidegger (2021)
 (see https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3393482) and corresponds to the
-model solved in appendix C with a slighly different model calibration.
+model solved in appendix F with a slighly different model calibration.
 
 Note that this is a minimal working example for illustration purposes only. A more
 extensive implementation will be published on Github.
@@ -21,7 +21,6 @@ addition to being analytically solvable, it is closely related to the models sol
 paper. Therefore, the approach presented in this notebook translates directly to the models
 in working paper.
 
-
 To change the economic parameters and neural network hyper-parameters, see ./param.py.
 The load episode, seed, and plot and save intervals can be passed in via the command line:
 
@@ -29,7 +28,7 @@ The load episode, seed, and plot and save intervals can be passed in via the com
 
 The distribution of capital, neural network loss, and the relative error in the Euler
 equations are plotted every `plot_interval` steps and saved to './output/plots'. Additionally,
-since we have the analytical solution, we can compare the DEQNs performance relative to the
+since we have the analytical solution, we can compare the DEQNs performance relative to the 
 true solution. Therefore, we also plot the each agents policy function.
 """
 # ########################################################################### #
@@ -70,10 +69,10 @@ parser.add_argument('--save_interval', type=int, default=100, help='Interval to 
 
 def firm(K, eta, alpha, delta):
     """Calculate return, wage and aggregate production.
-
+    
     r = eta * K^(alpha-1) * L^(1-alpha) + (1-delta)
     w = eta * K^(alpha) * L^(-alpha)
-    Y = eta * K^(alpha) * L^(1-alpha) + (1-delta) * K
+    Y = eta * K^(alpha) * L^(1-alpha) + (1-delta) * K 
 
     Args:
         K: aggregate capital,
@@ -82,7 +81,7 @@ def firm(K, eta, alpha, delta):
         delta: depreciation value.
 
     Returns:
-        return: return (marginal product of capital),
+        return: return (marginal product of capital), 
         wage: wage (marginal product of labor),
         Y: aggregate production.
     """
@@ -103,13 +102,13 @@ def shocks(z, eta, delta):
         delta: tensor of depreciation values to sample from.
 
     Returns:
-        tfp: TFP value of exogenous shock,
+        tfp: TFP value of exogenous shock, 
         depreciation: depreciation values of exogenous shock.
     """
     tfp = tf.gather(eta, tf.cast(z, tf.int32))
     depreciation = tf.gather(delta, tf.cast(z, tf.int32))
     return tfp, depreciation
-
+    
 def wealth(k, R, l, W):
     """Calculates the wealth of the agents.
 
@@ -181,7 +180,7 @@ def main(args):
     #                             Economic model                              #
     # ####################################################################### #
     # Current period ##########################################################
-    # Today's extended state:
+    # Today's extended state: 
     z = X[:, 0]  # exogenous shock
     tfp = X[:, 1]  # total factor productivity
     depr = X[:, 2]  # depreciation
@@ -238,7 +237,7 @@ def main(args):
     R_prime_1 = r_prime_1 * tf.ones([1, A])
     W_prime_1 = w_prime_1 * tf.ones([1, A])
 
-    # Distribution of financial wealth, labor income, and total income
+    # D istribution of financial wealth, labor income, and total income
     fw_prime_1, linc_prime_1, inc_prime_1 = wealth(k_prime, R_prime_1, l_prime, W_prime_1)
 
     # Tomorrow's state: Concatenate the parts together
@@ -278,7 +277,7 @@ def main(args):
     R_prime_2 = r_prime_2 * tf.ones([1, A])
     W_prime_2 = w_prime_2 * tf.ones([1, A])
 
-    # Distribution of financial wealth, labor income, and total income
+    # D istribution of financial wealth, labor income, and total income
     fw_prime_2, linc_prime_2, inc_prime_2 = wealth(k_prime, R_prime_2, l_prime, W_prime_2)
 
     # Tomorrow's state: Concatenate the parts together
@@ -316,7 +315,7 @@ def main(args):
     R_prime_3 = r_prime_3 * tf.ones([1, A])
     W_prime_3 = w_prime_3 * tf.ones([1, A])
 
-    # Distribution of financial wealth, labor income, and total income
+    # D istribution of financial wealth, labor income, and total income
     fw_prime_3, linc_prime_3, inc_prime_3 = wealth(k_prime, R_prime_3, l_prime, W_prime_3)
 
     # Tomorrow's state: Concatenate the parts together
@@ -356,7 +355,7 @@ def main(args):
     R_prime_4 = r_prime_4 * tf.ones([1, A])
     W_prime_4 = w_prime_4 * tf.ones([1, A])
 
-    # Distribution of financial wealth, labor income, and total income
+    # D istribution of financial wealth, labor income, and total income
     fw_prime_4, linc_prime_4, inc_prime_4 = wealth(k_prime, R_prime_4, l_prime, W_prime_4)
 
     # Tomorrow's state: Concatenate the parts together
@@ -398,9 +397,9 @@ def main(args):
         (
             (
                 beta * (
-                    pi_trans_to1 * R_prime_1[:, 0:A-1] * c_prime_1[:, 1:A]**(-gamma)
-                    + pi_trans_to2 * R_prime_2[:, 0:A-1] * c_prime_2[:, 1:A]**(-gamma)
-                    + pi_trans_to3 * R_prime_3[:, 0:A-1] * c_prime_3[:, 1:A]**(-gamma)
+                    pi_trans_to1 * R_prime_1[:, 0:A-1] * c_prime_1[:, 1:A]**(-gamma) 
+                    + pi_trans_to2 * R_prime_2[:, 0:A-1] * c_prime_2[:, 1:A]**(-gamma) 
+                    + pi_trans_to3 * R_prime_3[:, 0:A-1] * c_prime_3[:, 1:A]**(-gamma) 
                     + pi_trans_to4 * R_prime_4[:, 0:A-1] * c_prime_4[:, 1:A]**(-gamma)
                 )
             ) ** (-1. / gamma)
@@ -477,7 +476,7 @@ def main(args):
                 X_new = sess.run(x_prime_3, feed_dict={X: X_old})
             else:
                 X_new = sess.run(x_prime_4, feed_dict={X: X_old})
-
+            
             # Append it to the dataset
             X_episodes[t, :] = X_new
             X_old = X_new
@@ -533,7 +532,7 @@ def main(args):
 
     if args.load_episode != 0:
         saver.restore(sess, './output/models/sess_{}.ckpt'.format(args.load_episode))
-
+                
     for episode in range(args.load_episode, num_episodes):
         # Simulate data: every episode uses a new training dataset generated on
         # the current iteration's neural network parameters.
@@ -542,7 +541,7 @@ def main(args):
         k_dist_mean = np.mean(X_episodes[:, 8 : 8 + A], axis=0)
         k_dist_min = np.min(X_episodes[:, 8 : 8 + A], axis=0)
         k_dist_max = np.max(X_episodes[:, 8 : 8 + A], axis=0)
-
+        
         ee_error = np.zeros((1, num_agents-1))
         max_ee = np.zeros((1, num_agents-1))
 
@@ -614,7 +613,7 @@ def main(args):
             ax.set_xticks(all_ages)
             plt.savefig('./output/plots/distk_ep_%d.pdf' % episode, bbox_inches='tight')
             plt.close()
-
+            
             # =======================================================================================
             # Sample 50 states and compare the neural network's prediction to the analytical solution
             pick = np.random.randint(len_episodes, size=50)
@@ -661,10 +660,11 @@ def main(args):
                 ax.set_title('Agent {}'.format(i+1))
                 ax.set_xlabel(r'$k_t$')
                 ax.set_ylabel(r'$a_t$')
-                ax.legend()
+                ax.legend() 
                 plt.savefig('./output/plots/policy_agent_%d_ep_%d.pdf' % (i+1, episode), bbox_inches='tight')
                 plt.close()
-
+            
+            
         # Print cost and time log
         print('Episode {}: \t log10(Cost): {:.4f}; \t runtime: {}'\
             .format(episode, np.log10(cost_store[-1]), datetime.now()- time_start))
@@ -674,7 +674,6 @@ def main(args):
             saver.save(sess, './output/models/sess_{}.ckpt'.format(episode))
             # Save the starting point
             np.save('./output/startpoints/data_{}.npy'.format(episode), X_data_train)
-
 
 if __name__ == '__main__':
     global args
@@ -698,3 +697,4 @@ if __name__ == '__main__':
 
     # Train deep equilibrium net
     main(args)
+
