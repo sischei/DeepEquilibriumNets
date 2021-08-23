@@ -13,7 +13,7 @@ This repository contains example codes in [TensorFlow](https://www.tensorflow.or
 ### Authors
 * [Marlon Azinovic](https://sites.google.com/view/marlonazinovic/home) (University of Zurich, Department of Banking and Finance and Swiss Finance Institute)
 * [Luca Gaegauf](https://www.bf.uzh.ch/en/persons/gaegauf-luca/team) (University of Zurich, Department of Banking and Finance)
-* [Simon Scheidegger](https://sites.google.com/site/simonscheidegger/) (University of Lausanne, Department of Finance)
+* [Simon Scheidegger](https://sites.google.com/site/simonscheidegger/) (University of Lausanne, Department of Economics)
 
 ### The full paper can be found here
 * [Deep Equilibrium Nets](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3393482)
