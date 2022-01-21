@@ -25,7 +25,7 @@ The presented model is taken from [Krueger and Kubler (2004)](https://www.scienc
 
 **Benchmark model:** We provide the code used to solve our [benchmark model (section 3)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3393482) with the trained neural network weights.
 
-**"continuum of agents" model:** We provide the code used to solve our ["continuum of agents" model (section 6)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3393482) with the trained neural network weights.
+**"continuum of agents" model:** We provide the code used to solve our ["continuum of agents" model (Appendix E)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3393482) with the trained neural network weights.
 
 ## Usage
 We provide implementations which use python 3.
@@ -83,4 +83,4 @@ Available at SSRN: https://ssrn.com/abstract=3393482 or http://dx.doi.org/10.213
 
 ## Support
 
-This work was supported the Swiss Platform for Advanced Scientific Computing (PASC) under project ID ["Computing equilibria in heterogeneous agent macro models on contemporary HPC platforms"](https://www.pasc-ch.org/projects/2017-2020/call-for-pasc-hpc-software-development-project-proposals).
+This work was generously supported by grants from the Swiss National Supercomputing Centre (CSCS) under project IDs s885, s995, the Swiss Platform for Advanced Scientific Computing (PASC) under project ID ["Computing equilibria in heterogeneous agent macro models on contemporary HPC platforms"](https://www.pasc-ch.org/projects/2017-2020/call-for-pasc-hpc-software-development-project-proposals), the Swiss National Science Foundation (SNF), under project IDs "Can Economic Policy Mitigate Climate-Change?", and "New methods for asset pricing with frictions".
