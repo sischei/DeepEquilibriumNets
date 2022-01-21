@@ -4,7 +4,7 @@
 The deep equilibrium net "continuum of agents" model: 
 
 This script provides the code used to model and solve a model with a continuum of agents, and aggregate and
-idiosyncratic shocks in section 6 of Azinovic, Gaegauf, & Scheidegger (2021)
+idiosyncratic shocks in appendix E of Azinovic, Gaegauf, & Scheidegger (2021)
 (https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3393482). For a more streamlined application, see 
 https://github.com/sischei/DeepEquilibriumNets/blob/master/code/jupyter-notebooks/analytic/Analytic_tf1.ipynb.
 
