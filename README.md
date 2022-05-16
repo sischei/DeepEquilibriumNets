@@ -15,8 +15,9 @@ This repository contains example codes in [TensorFlow](https://www.tensorflow.or
 * [Luca Gaegauf](https://www.bf.uzh.ch/en/persons/gaegauf-luca/team) (University of Zurich, Department of Banking and Finance)
 * [Simon Scheidegger](https://sites.google.com/site/simonscheidegger/) (University of Lausanne, Department of Economics)
 
-### The full paper can be found here
-* [Deep Equilibrium Nets](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3393482)
+### The paper was published at the IER, and can be found here
+* [Deep Equilibrium Nets](https://onlinelibrary.wiley.com/doi/epdf/10.1111/iere.12575)
+* [Deep Equilibrium Nets -- SSRN version](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3393482)
 
 ### Illustrative examples
 
