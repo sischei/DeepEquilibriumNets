@@ -9,7 +9,7 @@ to install the correct version.
 
 The notebook accompanies the working paper by Azinovic, Gaegauf, & Scheidegger (2021)
 (see https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3393482) and corresponds to the
-model solved in appendix F with a slighly different model calibration.
+model solved in appendix H with a slighly different model calibration.
 
 Note that this is a minimal working example for illustration purposes only. A more
 extensive implementation will be published on Github.

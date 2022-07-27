@@ -11,7 +11,7 @@ This repository contains example codes in [TensorFlow](https://www.tensorflow.or
 
 
 ### Authors
-* [Marlon Azinovic](https://sites.google.com/view/marlonazinovic/home) (University of Zurich, Department of Banking and Finance and Swiss Finance Institute)
+* [Marlon Azinovic](https://sites.google.com/view/marlonazinovic/home) (University of Zurich, Department of Economics)
 * [Luca Gaegauf](https://www.bf.uzh.ch/en/persons/gaegauf-luca/team) (University of Zurich, Department of Banking and Finance)
 * [Simon Scheidegger](https://sites.google.com/site/simonscheidegger/) (University of Lausanne, Department of Economics)
 
@@ -21,12 +21,12 @@ This repository contains example codes in [TensorFlow](https://www.tensorflow.or
 
 ### Illustrative examples
 
-**Analytic model:** To illustrate how DEQNs can be applied to solve economic models, we provide an example in python, which solves the model presented in [Appendix F](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3393482) of the paper.
+**Analytic model:** To illustrate how DEQNs can be applied to solve economic models, we provide an example in python, which solves the model presented in [Appendix A.8](https://onlinelibrary.wiley.com/doi/epdf/10.1111/iere.12575) of the paper.
 The presented model is taken from [Krueger and Kubler (2004)](https://www.sciencedirect.com/science/article/pii/S0165188903001118) and is based on [Huffman (1987)](https://www.journals.uchicago.edu/doi/10.1086/261445). We chose this model as an illustrative example for two reasons: first, it is closely related to the models we solve in the paper and second, it has an analytical solution, so the accuracy of the solution method can easily be verified.
 
-**Benchmark model:** We provide the code used to solve our [benchmark model (section 3)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3393482) with the trained neural network weights.
+**Benchmark model:** We provide the code used to solve our [benchmark model (section 3)](https://onlinelibrary.wiley.com/doi/epdf/10.1111/iere.12575) with the trained neural network weights.
 
-**"continuum of agents" model:** We provide the code used to solve our ["continuum of agents" model (Appendix E)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3393482) with the trained neural network weights.
+**"continuum of agents" model:** We provide the code used to solve our ["continuum of agents" model (Appendix A.5)](https://onlinelibrary.wiley.com/doi/epdf/10.1111/iere.12575) with the trained neural network weights.
 
 ## Usage
 We provide implementations which use python 3.

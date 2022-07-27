@@ -1,2 +1,2 @@
-model_checkpoint_path: "ckpt_episode13000_epoch0-80"
-all_model_checkpoint_paths: "ckpt_episode13000_epoch0-80"
+model_checkpoint_path: "ckpt_episode3600_epoch0-140"
+all_model_checkpoint_paths: "ckpt_episode3600_epoch0-140"

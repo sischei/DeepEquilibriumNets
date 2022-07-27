@@ -4,8 +4,8 @@
 The deep equilibrium net "continuum of agents" model: 
 
 This script provides the code used to model and solve a model with a continuum of agents, and aggregate and
-idiosyncratic shocks in appendix E of Azinovic, Gaegauf, & Scheidegger (2021)
-(https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3393482). For a more streamlined application, see 
+idiosyncratic shocks in Appendix A.5 of Azinovic, Gaegauf, & Scheidegger (2022)
+(https://onlinelibrary.wiley.com/doi/epdf/10.1111/iere.12575). For a more streamlined application, see 
 https://github.com/sischei/DeepEquilibriumNets/blob/master/code/jupyter-notebooks/analytic/Analytic_tf1.ipynb.
 
 Note that, this script was programmed in TensorFlow 2 and is not TensorFlow 1 compatible. To install
@@ -215,6 +215,22 @@ def train(
         
         new_weights = tf.concat([sum(x) for x in zip(*new_weights_list)], axis=1)
         
+        # test mass preserved
+        sum_id0 = tf.reduce_sum(new_weights[:, 0 : nA], axis = 1, keepdims = True)
+        sum_id1 = tf.reduce_sum(new_weights[:, nA : 2 * nA], axis = 1, keepdims = True)
+
+        
+        tf.debugging.Assert(tf.less_equal(tf.reduce_max(tf.abs(sum_id0 - 0.5)), 1e-5), [sum_id0]) , 'mass not preserved id0'
+        tf.debugging.Assert(tf.less_equal(tf.reduce_max(tf.abs(sum_id1 - 0.5)), 1e-5), [sum_id1]) , 'mass not preserved id1'
+        
+
+        # normalize so that small numerical imprecisions don't accumulate
+        new_weights = tf.concat([
+            0.5 * (new_weights[:, 0 : nA] / sum_id0), 
+            0.5 * (new_weights[:, nA : 2 * nA] / sum_id1)
+            ], axis = 1)
+
+
         return new_weights
 
     @tf.function
@@ -917,13 +933,13 @@ def train(
                     print('generating more detailed error statistics')
                     print('#' + '=' * 50)
                     
-                    N_id_plot = 50
+                    N_id_plot = 100
                     Xagg_0_plot = Xagg_evol[-num_tracks:, :].numpy()
 
                     plt_X, plt_Xaggnext0, plt_Xaggnext1, plt_Xaggnext2, plt_Xaggnext3, plt_Xaggnext4, plt_Xaggnext5, plt_Xagg_evol, plt_aplotgrid  = create_plotting_data(len_episodes, N_id_plot, Xagg_0_plot, net_pol)
 
                     ntotplot = plt_X.shape[0]
-
+                    
                     c_all = np.empty(ntotplot)
                     releue_all = np.empty(ntotplot)
                     relbee_all = np.empty(ntotplot)
@@ -933,7 +949,7 @@ def train(
                     mcerr_all = np.empty(ntotplot)
                     KKTerr_all = np.empty(ntotplot)
 
-                    npackets = 50
+                    npackets = 100
                     assert ntotplot % npackets == 0, 'make sure its divisible'
 
                     n_per_packet = ntotplot / npackets
@@ -984,6 +1000,20 @@ def train(
                     plt.savefig(plot_name + 'detailed_relee.pdf', bbox_inches='tight')
                     plt.close()   
 
+                    plt.figure(figsize=std_figsize)
+                    ax1 = plt.subplot(1,1,1)
+                    ax1.plot(plt_aplotgrid, np.log10(np.mean(np.abs(releue_use[:, 0, :]), axis = 1)), 'r-', label = r'$\eta_t=0.8$')
+                    ax1.plot(plt_aplotgrid, np.log10(np.mean(np.abs(releue_use[:, 1, :]), axis = 1)), 'k-', label = r'$\eta_t=1.2$')
+                    
+                    for perc in perc_list:
+                        ax1.plot(plt_aplotgrid, np.log10(np.percentile(np.abs(releue_use[:, 0, :]), perc, axis = 1)), 'r' + perc_ls[perc])
+                        ax1.plot(plt_aplotgrid, np.log10(np.percentile(np.abs(releue_use[:, 1, :]), perc, axis = 1)), 'k' + perc_ls[perc])
+                        
+                    ax1.set_xlabel('Asset holding')
+                    ax1.set_ylabel('Rel. Ee error [log10]')
+                    plt.legend(loc='upper right')
+                    plt.savefig(plot_name + 'detailed_relee_paper.pdf', bbox_inches='tight')
+                    plt.close()   
 
                     plt.figure(figsize=std_figsize)
                     ax2 = plt.subplot(1,1,1)
@@ -1000,17 +1030,43 @@ def train(
                     plt.savefig(plot_name + 'detailed_relbe.pdf', bbox_inches='tight')
                     plt.close()        
 
+
+
                     plt.figure(figsize=std_figsize)
                     ax2 = plt.subplot(1,1,1)
-                    ax2.plot(plt_aplotgrid, np.log10(np.mean(np.abs(KKTerr_use[:, 0, :]), axis = 1)), 'r-', label = r'$\eta_t=0.8$, mean')
-                    ax2.plot(plt_aplotgrid, np.log10(np.mean(np.abs(KKTerr_use[:, 1, :]), axis = 1)), 'k-', label = r'$\eta_t=1.2$, mean')
+                    ax2.plot(plt_aplotgrid, np.log10(np.mean(np.abs(relbee_use[:, 0, :]), axis = 1)), 'r-')
+                    ax2.plot(plt_aplotgrid, np.log10(np.mean(np.abs(relbee_use[:, 1, :]), axis = 1)), 'k-')
 
                     for perc in perc_list:
-                        ax2.plot(plt_aplotgrid, np.log10(np.percentile(np.abs(KKTerr_use[:, 0, :]), perc, axis = 1)), 'r' + perc_ls[perc], label = r'$\eta_t=0.8$, '+str(perc)+' perc.')
-                        ax2.plot(plt_aplotgrid, np.log10(np.percentile(np.abs(KKTerr_use[:, 1, :]), perc, axis = 1)), 'k' + perc_ls[perc], label = r'$\eta_t=1.2$, '+str(perc)+' perc.')
+                        ax2.plot(plt_aplotgrid, np.log10(np.percentile(np.abs(relbee_use[:, 0, :]), perc, axis = 1)), 'r' + perc_ls[perc])
+                        ax2.plot(plt_aplotgrid, np.log10(np.percentile(np.abs(relbee_use[:, 1, :]), perc, axis = 1)), 'k' + perc_ls[perc])
 
                     ax2.set_xlabel('Asset holding')
-                    ax2.set_ylabel('KKT error [log10]')
+                    ax2.set_ylabel('Rel. Be error [log10]')
+                    plt.savefig(plot_name + 'detailed_relbe_paper.pdf', bbox_inches='tight')
+                    plt.close()        
+
+
+                    plt.figure(figsize=std_figsize)
+                    ax2 = plt.subplot(1,1,1)
+
+                    # because we take logs we dont want (numerical) zeros
+                    plotidx0 = np.mean(np.abs(KKTerr_use[:, 0, :]), axis = 1) > 1e-31
+                    plotidx1 = np.mean(np.abs(KKTerr_use[:, 1, :]), axis = 1) > 1e-31
+
+                    ax2.plot(plt_aplotgrid[plotidx0], np.log10(np.mean(np.abs(KKTerr_use[:, 0, :]), axis = 1)[plotidx0]), 'r-', label = r'$\eta_t=0.8$, mean')
+                    ax2.plot(plt_aplotgrid[plotidx1], np.log10(np.mean(np.abs(KKTerr_use[:, 1, :]), axis = 1)[plotidx1]), 'k-', label = r'$\eta_t=1.2$, mean')
+
+                    for perc in perc_list:
+                        # because we take logs we dont want (numerical) zeros
+                        plotidx0 = np.percentile(np.abs(KKTerr_use[:, 0, :]), perc, axis = 1) > 1e-31
+                        plotidx1 = np.percentile(np.abs(KKTerr_use[:, 1, :]), perc, axis = 1) > 1e-31
+                        
+                        ax2.plot(plt_aplotgrid[plotidx0], np.log10(np.percentile(np.abs(KKTerr_use[:, 0, :]), perc, axis = 1)[plotidx0]), 'r' + perc_ls[perc], label = r'$\eta_t=0.8$, '+str(perc)+' perc.')
+                        ax2.plot(plt_aplotgrid[plotidx1], np.log10(np.percentile(np.abs(KKTerr_use[:, 1, :]), perc, axis = 1)[plotidx1]), 'k' + perc_ls[perc], label = r'$\eta_t=1.2$, '+str(perc)+' perc.')
+
+                    ax2.set_xlabel('Asset holding')
+                    ax2.set_ylabel('KKT error (where > 1e-31) [log10]')
                     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
                     plt.savefig(plot_name + 'detailed_KKTerr.pdf', bbox_inches='tight')
                     plt.close()        
@@ -1030,14 +1086,22 @@ def train(
                     
                     plt.figure(figsize=std_figsize)
                     ax4 = plt.subplot(1,1,1)
-                    ax4.hist(100 * (mcerr.numpy().flatten() / nZ), color = 'k', alpha = 0.5)
+                    ax4.hist(100 * (mcerr_use[0, 0, :].numpy().flatten() / nZ), color = 'k', alpha = 0.5)
                     ax4.set_xlabel(r'Error in market clearing [$10^{-2}$]')
                     ax4.set_ylabel('Count')
                     #plt.legend()
                     plt.savefig(plot_name + 'detailed_marketclearing.pdf', bbox_inches='tight')
                     plt.close() 
                                                         
-                    
+                    plt.figure(figsize=std_figsize)
+                    ax4 = plt.subplot(1,1,1)
+                    ax4.hist(100 * (mcerr_use[0, 0, :].numpy().flatten() / nZ), color = 'k', alpha = 0.5)
+                    ax4.set_xlabel(r'Error in market clearing [$10^{-2}$]')
+                    ax4.set_ylabel('Count')
+                    #plt.legend()
+                    plt.savefig(plot_name + 'detailed_marketclearing_paper.pdf', bbox_inches='tight')
+                    plt.close() 
+                                                         
 
                     plt.figure(figsize=std_figsize)
                     ax5 = plt.subplot(1,1,1)
@@ -1053,6 +1117,22 @@ def train(
                     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
                     plt.savefig(plot_name + 'detailed_KKTmult.pdf', bbox_inches='tight')
                     plt.close()    
+
+                    plt.figure(figsize=std_figsize)
+                    ax6 = plt.subplot(1,1,1)
+                    ax6.plot(plt_aplotgrid, np.mean(np.abs(c_use[:, 0, :]), axis = 1), 'r-', label = r'$\eta_t=0.8$, mean')
+                    ax6.plot(plt_aplotgrid, np.mean(np.abs(c_use[:, 1, :]), axis = 1), 'k-', label = r'$\eta_t=1.2$, mean')
+
+                    for perc in perc_list:
+                        ax6.plot(plt_aplotgrid, np.percentile(np.abs(c_use[:, 0, :]), perc, axis = 1), 'r' + perc_ls[perc], label = r'$\eta_t=0.8$, '+str(perc)+' perc.')
+                        ax6.plot(plt_aplotgrid, np.percentile(np.abs(c_use[:, 1, :]), perc, axis = 1), 'k' + perc_ls[perc], label = r'$\eta_t=1.2$, '+str(perc)+' perc.')
+
+                    ax6.set_xlabel('Asset holding')
+                    ax6.set_ylabel('c')
+                    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+                    plt.savefig(plot_name + 'detailed_cstats.pdf', bbox_inches='tight')
+                    plt.close()    
+
 
                     print('#' + '=' * 50)
                     print('more detailed error statistics done')
@@ -1082,11 +1162,11 @@ def main():
     len_episodes = 2048
     epochs_per_episode = 1
     num_tracks = 16
-    num_id_per_shock = 2#20
+    num_id_per_shock = 4#20
     save_interval = 50
     lr = 1e-5
     load_run_name = 'deqn_continuumagents_final' if args.load_flag else None
-    load_episode = 75000 if args.load_flag else 0
+    load_episode = 32000 if args.load_flag else 0
 
     print('seed: {}'.format(seed))
     print('working directory: ' + path_wd)
@@ -1099,7 +1179,7 @@ def main():
     if args.load_flag:
         train_flag = False
         num_episodes = 1
-        print('loading weights from deqn_continuumagents_final')
+        print('loading weights from {}'.format(load_run_name))
         print('loading from episode {}'.format(load_episode))
     else:
         train_flag = True

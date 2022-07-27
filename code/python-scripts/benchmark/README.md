@@ -1,7 +1,6 @@
 # The Deep Equilibrium Net Benchmark Model
 
-This script provides the code used to model and solve the benchmark model in the working paper by
-[Azinovic, Gaegauf, & Scheidegger (2021)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3393482)
+This script provides the code used to model and solve the benchmark model in [Azinovic, Gaegauf, & Scheidegger (2022)](https://onlinelibrary.wiley.com/doi/epdf/10.1111/iere.12575)
 (see section 3). For a more streamlined application, see the [analytic notebook](https://github.com/sischei/DeepEquilibriumNets/blob/master/code/jupyter-notebooks/Analytic_tf1.ipynb).
 
 ### Prerequisites / Installation
