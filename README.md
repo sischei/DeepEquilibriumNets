@@ -83,13 +83,14 @@ Please cite Deep Equilibrium Nets in your publications if it helps your research
 author = {Azinovic, Marlon and Gaegauf, Luca and Scheidegger, Simon},
 title = {DEEP EQUILIBRIUM NETS},
 journal = {International Economic Review},
-volume = {n/a},
-number = {n/a},
-pages = {},
-year={2022}
+volume = {63},
+number = {4},
+pages = {1471-1525},
 doi = {https://doi.org/10.1111/iere.12575},
 url = {https://onlinelibrary.wiley.com/doi/abs/10.1111/iere.12575},
-eprint = {https://onlinelibrary.wiley.com/doi/pdf/10.1111/iere.12575}
+eprint = {https://onlinelibrary.wiley.com/doi/pdf/10.1111/iere.12575},
+abstract = {Abstract We introduce deep equilibrium nets (DEQNs)—a deep learning-based method to compute approximate functional rational expectations equilibria of economic models featuring a significant amount of heterogeneity, uncertainty, and occasionally binding constraints. DEQNs are neural networks trained in an unsupervised fashion to satisfy all equilibrium conditions along simulated paths of the economy. Since DEQNs approximate the equilibrium functions directly, simulating the economy is computationally cheap, and training data can be generated at virtually zero cost. We demonstrate that DEQNs can accurately solve economically relevant models by applying them to two challenging life-cycle models and a Bewley-style model with aggregate risk.},
+year = {2022}
 }
 ```
 
